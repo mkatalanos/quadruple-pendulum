@@ -1,18 +1,17 @@
 #include <box2d/box2d.h>
-#include <cassert>
 #include <format>
 #include <functional>
-#include <iostream>
 #include <raylib.h>
 #include <string>
+#include <vector>
 
 constexpr int WINDOW_WIDTH = 1920, WINDOW_HEIGHT = 1080;
 // constexpr int WINDOW_WIDTH = 1280, WINDOW_HEIGHT = 720;
 constexpr float lengthUnitsPerMeter = 128.0f;
 
 struct Physics {
-  b2BodyId id;
-  b2ShapeId shapeId;
+  b2BodyId id = b2_nullBodyId;
+  b2ShapeId shapeId = b2_nullShapeId;
 };
 
 struct Entity {
@@ -38,11 +37,15 @@ struct EntityManager {
     b2WorldDef worldDef = b2DefaultWorldDef();
     worldDef.gravity.y = 9.8f * lengthUnitsPerMeter;
     m_worldId = b2CreateWorld(&worldDef);
+
+    m_tracked_entities = std::vector<Entity>(5);
   }
   ~EntityManager() { b2DestroyWorld(m_worldId); }
 
   Entity &CreateBox(Vector2 position, Vector2 size);
+  Entity &CreateDummy(Vector2 position);
   Entity &CreateGround(Vector2 position, Vector2 size);
+  Entity &CreateMass(Vector2 position, float size, Color color);
 
   void MousePressed(Vector2 pos);
   void MouseReleased();
@@ -50,6 +53,8 @@ struct EntityManager {
   void UpdateSimulation(float deltaTime, int subdivbisions = 4) {
     b2World_Step(m_worldId, deltaTime, subdivbisions);
   }
+
+  b2WorldId GetWorld() { return m_worldId; }
 
   void RegisterEntity(Entity &&entity) {
     m_tracked_entities.push_back(std::move(entity));
@@ -62,14 +67,12 @@ struct EntityManager {
 
     if (b2Joint_IsValid(m_mouseJointId)) {
 
-      DrawText(std::format("Joint {}", b2Joint_GetBodyB(m_mouseJointId).index1)
-                   .c_str(),
-               0, 20, 20, GREEN);
+      DrawText("Mouse Grab On", 0, 20, 20, GREEN);
 
       auto target = b2MouseJoint_GetTarget(m_mouseJointId);
       DrawCircle(target.x, target.y, 5, BLACK);
     } else
-      DrawText("Joint off", 0, 20, 20, GREEN);
+      DrawText("Mouse Grab off", 0, 20, 20, GREEN);
   }
 
 private:
@@ -145,6 +148,56 @@ Entity &EntityManager::CreateBox(Vector2 position, Vector2 size) {
   return m_tracked_entities.back();
 }
 
+Entity &EntityManager::CreateMass(Vector2 position, float size, Color color) {
+  // Create Body
+  auto bodyDef = b2DefaultBodyDef();
+  bodyDef.type = b2_dynamicBody;
+  bodyDef.position = b2Vec2(position.x, position.y);
+  b2BodyId bodyId = b2CreateBody(m_worldId, &bodyDef);
+
+  // Add Shape
+  auto shapeDef = b2DefaultShapeDef();
+  shapeDef.density = 1;
+
+  b2Circle circle{{0, 0}, size};
+  b2ShapeId shapeId = b2CreateCircleShape(bodyId, &shapeDef, &circle);
+
+  // Prepare entity
+  Entity entity;
+  entity.physics.id = bodyId;
+  entity.physics.shapeId = shapeId;
+
+  // Attach Rendering function
+  entity.render_ = [bodyId, size, color] {
+    // std::cout << "Rendering Box: " << bodyId.index1
+    //           << " with shape id: " << shapeId.index1 << std::endl;
+
+    b2Vec2 p = b2Body_GetWorldPoint(bodyId, {0, 0});
+    DrawCircle(p.x, p.y, size, color);
+    // DrawRectanglePro(rec, Vector2{0, 0}, angle, BLUE);
+  };
+
+  m_tracked_entities.push_back(std::move(entity));
+  return m_tracked_entities.back();
+}
+
+Entity &EntityManager::CreateDummy(Vector2 position) {
+  auto bodyDef = b2DefaultBodyDef();
+  bodyDef.position = b2Vec2{position.x, position.y};
+  b2BodyId bodyId = b2CreateBody(m_worldId, &bodyDef);
+
+  Entity entity;
+  entity.physics.id = bodyId;
+
+  entity.render_ = [bodyId] {
+    b2Vec2 p = b2Body_GetWorldPoint(bodyId, {-5, -5});
+    DrawRectangle(p.x, p.y, 10, 10, BLACK);
+  };
+
+  m_tracked_entities.push_back(std::move(entity));
+  return m_tracked_entities.back();
+}
+
 void EntityManager::MousePressed(Vector2 pos) {
   b2Vec2 p{pos.x, pos.y};
   if (b2Joint_IsValid(m_mouseJointId)) {
@@ -152,7 +205,6 @@ void EntityManager::MousePressed(Vector2 pos) {
     return;
   }
 
-  puts("Looking for new");
   // Make a small box
   b2AABB box;
   b2Vec2 d{1, 1};
@@ -194,7 +246,6 @@ void EntityManager::MousePressed(Vector2 pos) {
                       &queryContext);
   // Check if Query has resulted in a shape
   if (B2_IS_NON_NULL(queryContext.bodyId)) {
-    puts("mouse pressed: query found something");
 
     // Set the joint
     if (B2_IS_NULL(m_groundBodyId)) {
@@ -227,22 +278,65 @@ int main(void) {
   SetTargetFPS(60);
 
   EntityManager em;
-  em.CreateGround({int{WINDOW_WIDTH / 2}, WINDOW_HEIGHT - 20},
-                  {WINDOW_WIDTH, 40});
-  em.CreateGround({int{WINDOW_WIDTH / 2}, 5}, {WINDOW_WIDTH, 10});
-  em.CreateGround({5, int{WINDOW_HEIGHT / 2}}, {10, WINDOW_HEIGHT});
-  em.CreateGround({int{WINDOW_WIDTH - 5}, int{WINDOW_HEIGHT / 2}},
-                  {10, WINDOW_HEIGHT});
-  em.CreateBox({200, 200}, {100, 100});
-  em.CreateBox({300, 200}, {100, 100});
-  em.CreateBox({400, 200}, {100, 100});
-  em.CreateBox({500, 200}, {100, 100});
-  em.CreateBox({600, 200}, {100, 100});
-  em.CreateBox({200, 230}, {100, 100});
-  em.CreateBox({300, 230}, {100, 100});
-  em.CreateBox({400, 230}, {100, 100});
-  em.CreateBox({500, 230}, {100, 100});
-  em.CreateBox({600, 230}, {100, 100});
+  // em.CreateGround({int{WINDOW_WIDTH / 2}, WINDOW_HEIGHT - 20},
+  //                 {WINDOW_WIDTH, 40});
+  // em.CreateGround({int{WINDOW_WIDTH / 2}, 5}, {WINDOW_WIDTH, 10});
+  // em.CreateGround({5, int{WINDOW_HEIGHT / 2}}, {10, WINDOW_HEIGHT});
+  // em.CreateGround({int{WINDOW_WIDTH - 5}, int{WINDOW_HEIGHT / 2}},
+  //                 {10, WINDOW_HEIGHT});
+
+  float a1 = 0;
+  float l1 = 200;
+  float a2 = 0;
+  float l2 = 200;
+  float a3 = 0;
+  float l3 = 200;
+  float a4 = 0;
+  float l4 = 200;
+  Vector2 anchorPos{int{WINDOW_WIDTH / 2}, 80};
+  Vector2 mass1InitPos{anchorPos.x + l1 * cos(DEG2RAD * a1),
+                       anchorPos.y + l1 * sin(DEG2RAD * a1)};
+  Vector2 mass2InitPos{mass1InitPos.x + l2 * cos(DEG2RAD * a2),
+                       mass1InitPos.y + l2 * sin(DEG2RAD * a2)};
+  Vector2 mass3InitPos{mass2InitPos.x + l3 * cos(DEG2RAD * a3),
+                       mass2InitPos.y + l3 * sin(DEG2RAD * a3)};
+  Vector2 mass4InitPos{mass3InitPos.x + l4 * cos(DEG2RAD * a4),
+                       mass3InitPos.y + l4 * sin(DEG2RAD * a4)};
+
+  auto &anchor = em.CreateDummy(anchorPos);
+  auto &mass1 = em.CreateMass(mass1InitPos, 40, PINK);
+  auto &mass2 = em.CreateMass(mass2InitPos, 40, BLUE);
+  auto &mass3 = em.CreateMass(mass3InitPos, 40, RED);
+  auto &mass4 = em.CreateMass(mass4InitPos, 40, GREEN);
+
+  {
+    auto jointDef = b2DefaultDistanceJointDef();
+    jointDef.bodyIdA = anchor.physics.id;
+    jointDef.bodyIdB = mass1.physics.id;
+    jointDef.length = l1;
+    b2CreateDistanceJoint(em.GetWorld(), &jointDef);
+  }
+  {
+    auto jointDef = b2DefaultDistanceJointDef();
+    jointDef.bodyIdA = mass1.physics.id;
+    jointDef.bodyIdB = mass2.physics.id;
+    jointDef.length = l2;
+    b2CreateDistanceJoint(em.GetWorld(), &jointDef);
+  }
+  {
+    auto jointDef = b2DefaultDistanceJointDef();
+    jointDef.bodyIdA = mass2.physics.id;
+    jointDef.bodyIdB = mass3.physics.id;
+    jointDef.length = l3;
+    b2CreateDistanceJoint(em.GetWorld(), &jointDef);
+  }
+  {
+    auto jointDef = b2DefaultDistanceJointDef();
+    jointDef.bodyIdA = mass3.physics.id;
+    jointDef.bodyIdB = mass4.physics.id;
+    jointDef.length = l4;
+    b2CreateDistanceJoint(em.GetWorld(), &jointDef);
+  }
 
   bool pause = true;
 
@@ -265,6 +359,18 @@ int main(void) {
     BeginDrawing();
     ClearBackground(DARKGRAY);
 
+    // Render lines
+    {
+      b2Vec2 pos1 = b2Body_GetWorldPoint(mass1.physics.id, {0, 0});
+      b2Vec2 pos2 = b2Body_GetWorldPoint(mass2.physics.id, {0, 0});
+      b2Vec2 pos3 = b2Body_GetWorldPoint(mass3.physics.id, {0, 0});
+      b2Vec2 pos4 = b2Body_GetWorldPoint(mass4.physics.id, {0, 0});
+
+      DrawLineEx({anchorPos.x, anchorPos.y}, {pos1.x, pos1.y}, 4, LIGHTGRAY);
+      DrawLineEx({pos1.x, pos1.y}, {pos2.x, pos2.y}, 4, LIGHTGRAY);
+      DrawLineEx({pos2.x, pos2.y}, {pos3.x, pos3.y}, 4, LIGHTGRAY);
+      DrawLineEx({pos3.x, pos3.y}, {pos4.x, pos4.y}, 4, LIGHTGRAY);
+    }
     em.RenderAll();
 
     // Draw Ground
