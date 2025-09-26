@@ -1,8 +1,6 @@
 #include <box2d/box2d.h>
-#include <format>
 #include <functional>
 #include <raylib.h>
-#include <string>
 #include <vector>
 
 constexpr int WINDOW_WIDTH = 1920, WINDOW_HEIGHT = 1080;
@@ -293,6 +291,7 @@ int main(void) {
   float l3 = 200;
   float a4 = 0;
   float l4 = 200;
+  float dampingRatio = 1.0f;
   Vector2 anchorPos{int{WINDOW_WIDTH / 2}, 80};
   Vector2 mass1InitPos{anchorPos.x + l1 * cos(DEG2RAD * a1),
                        anchorPos.y + l1 * sin(DEG2RAD * a1)};
@@ -314,6 +313,7 @@ int main(void) {
     jointDef.bodyIdA = anchor.physics.id;
     jointDef.bodyIdB = mass1.physics.id;
     jointDef.length = l1;
+    jointDef.dampingRatio = dampingRatio;
     b2CreateDistanceJoint(em.GetWorld(), &jointDef);
   }
   {
@@ -321,6 +321,7 @@ int main(void) {
     jointDef.bodyIdA = mass1.physics.id;
     jointDef.bodyIdB = mass2.physics.id;
     jointDef.length = l2;
+    jointDef.dampingRatio = dampingRatio;
     b2CreateDistanceJoint(em.GetWorld(), &jointDef);
   }
   {
@@ -328,6 +329,7 @@ int main(void) {
     jointDef.bodyIdA = mass2.physics.id;
     jointDef.bodyIdB = mass3.physics.id;
     jointDef.length = l3;
+    jointDef.dampingRatio = dampingRatio;
     b2CreateDistanceJoint(em.GetWorld(), &jointDef);
   }
   {
@@ -335,6 +337,7 @@ int main(void) {
     jointDef.bodyIdA = mass3.physics.id;
     jointDef.bodyIdB = mass4.physics.id;
     jointDef.length = l4;
+    jointDef.dampingRatio = dampingRatio;
     b2CreateDistanceJoint(em.GetWorld(), &jointDef);
   }
 
@@ -386,6 +389,7 @@ int main(void) {
     } else {
       DrawText("Pause off", 0, 0, 20, GREEN);
     }
+    DrawFPS(WINDOW_WIDTH-80,0);
 
     EndDrawing();
   }
