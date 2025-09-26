@@ -1,0 +1,5 @@
+[wrap-git]
+url = https://github.com/erincatto/box2d
+revision = v3.1.1
+method = cmake
+
