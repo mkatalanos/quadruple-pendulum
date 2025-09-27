@@ -157,6 +157,7 @@ Entity &EntityManager::CreateMass(Vector2 position, float size, Color color) {
   // Add Shape
   auto shapeDef = b2DefaultShapeDef();
   shapeDef.density = 1;
+
   // shapeDef.filter.maskBits = 2;
   // shapeDef.filter.categoryBits = 2;
 
@@ -279,12 +280,13 @@ int main(void) {
   SetTargetFPS(60);
 
   EntityManager em;
-  // em.CreateGround({int{WINDOW_WIDTH / 2}, WINDOW_HEIGHT - 20},
-  //                 {WINDOW_WIDTH, 40});
+  em.CreateGround({int{WINDOW_WIDTH / 2}, WINDOW_HEIGHT - 20},
+                  {WINDOW_WIDTH, 40});
   // em.CreateGround({int{WINDOW_WIDTH / 2}, 5}, {WINDOW_WIDTH, 10});
   // em.CreateGround({5, int{WINDOW_HEIGHT / 2}}, {10, WINDOW_HEIGHT});
   // em.CreateGround({int{WINDOW_WIDTH - 5}, int{WINDOW_HEIGHT / 2}},
   //                 {10, WINDOW_HEIGHT});
+  em.CreateBox({320,100}, {600,600});
 
   float a1 = 0;
   float l1 = 200;
