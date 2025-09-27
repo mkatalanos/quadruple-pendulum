@@ -1,3 +1,4 @@
+#include "box2d/types.h"
 #include <box2d/box2d.h>
 #include <functional>
 #include <raylib.h>
@@ -156,6 +157,8 @@ Entity &EntityManager::CreateMass(Vector2 position, float size, Color color) {
   // Add Shape
   auto shapeDef = b2DefaultShapeDef();
   shapeDef.density = 1;
+  // shapeDef.filter.maskBits = 2;
+  // shapeDef.filter.categoryBits = 2;
 
   b2Circle circle{{0, 0}, size};
   b2ShapeId shapeId = b2CreateCircleShape(bodyId, &shapeDef, &circle);
@@ -389,7 +392,7 @@ int main(void) {
     } else {
       DrawText("Pause off", 0, 0, 20, GREEN);
     }
-    DrawFPS(WINDOW_WIDTH-80,0);
+    DrawFPS(WINDOW_WIDTH - 80, 0);
 
     EndDrawing();
   }
